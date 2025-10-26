@@ -1,0 +1,737 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Séjour Omra – Itinéraire interactif</title>
+
+<!-- PWA -->
+<link rel="manifest" href="./manifest.webmanifest">
+<meta name="theme-color" content="#0d1117">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
+
+<!-- Icons (Font Awesome 6) -->
+<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet" />
+
+<!-- Swiper -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/swiper@11/swiper-bundle.min.css" />
+<script src="https://cdn.jsdelivr.net/npm/swiper@11/swiper-bundle.min.js"></script>
+
+<style>
+/* ========= RESET & THEME ========= */
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#0d1117;
+  --ink:#0e0f12;
+  --card:#ffffff;
+  --muted:#6b7280;
+  --brand:#ffd700;          /* or #ffcc00 */
+  --brand-ink:#222;
+  --ring:rgba(0,0,0,.08);
+  --radius:16px;
+  --page:1440px;
+}
+html,body{height:100%}
+body{
+  font-family:system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,"Helvetica Neue",Arial,sans-serif;
+  background:linear-gradient(180deg,#0d1117 0%,#121a24 60%);
+  color:#111;display:flex;align-items:stretch;justify-content:center
+}
+.container{width:100%;height:100%;background:#fff;display:flex;flex-direction:column}
+
+/* ========= WIDTH WRAPPER ========= */
+.page{width:min(var(--page),100%);margin:0 auto}
+
+/* ========= HEADER ========= */
+header{background:#111;color:#fff;position:relative}
+.header-inner{display:flex;align-items:center;gap:12px;padding:16px 20px}
+header h1{font-size:1.25rem;letter-spacing:.3px}
+header .who{opacity:.85;font-size:.95rem;margin-left:auto}
+.actions{display:flex;gap:8px;margin-left:12px}
+.chip{border:none;padding:8px 12px;border-radius:999px;font-weight:700;cursor:pointer}
+.chip.primary{background:var(--brand);color:#111}
+.chip.secondary{background:#222;color:#fff;border:1px solid #333}
+
+/* ========= UPDATE TOAST ========= */
+.update-toast{position:fixed;left:50%;transform:translateX(-50%);bottom:16px;background:#111;color:#ffd700;border:2px solid #ffd700;padding:10px 14px;border-radius:12px;display:none;gap:10px;align-items:center;box-shadow:0 8px 24px rgba(0,0,0,.3);z-index:2000}
+.update-toast button{background:#ffd700;color:#111;border:none;border-radius:8px;padding:8px 10px;font-weight:800;cursor:pointer}
+
+/* ========= FLIGHTS ========= */
+.flight-bar{background:linear-gradient(90deg,#fff9db,#fff);border-top:1px solid #efe3a8;border-bottom:1px solid #efe3a8}
+.flight-inner{padding:10px 20px;display:flex;flex-wrap:wrap;gap:12px;justify-content:center}
+.flight{display:flex;align-items:center;gap:8px;color:#222}
+.flight i{color:#c79d00}
+
+/* ========= TIMELINE ========= */
+.tl{background:#fff;border-bottom:1px solid #eee}
+.tl-inner{padding:18px 20px}
+.timeline{
+  position:relative;
+  display:flex;align-items:flex-start;justify-content:space-between;
+  width:100%;
+  min-height:88px;
+}
+.timeline-line{
+  position:absolute;left:9px;right:9px;top:30px;
+  height:6px;background:#e8e8e8;border-radius:999px;
+}
+.timeline-progress{
+  position:absolute;top:30px;height:6px;
+  background:var(--brand);border-radius:999px;width:0%;
+  transition:width .35s ease;
+}
+#tpoints{
+  position:relative;z-index:2;
+  display:flex;justify-content:space-between;align-items:flex-start;
+  gap:10px;width:100%;
+  margin-top: 24px;
+}
+.tpoint{flex:1;min-width:0;text-align:center;cursor:pointer}
+.tpoint .dot{
+  width:18px;height:18px;margin:0 auto;transform: translateX(-50%);
+  border-radius:50%;background:#fff;border:4px solid #222;
+  transition:transform .2s ease, background .2s ease;
+}
+.tpoint.active .dot{background:var(--brand);border-color: var(--brand);}
+.tlabel{
+  margin-top:10px;display:inline-block;max-width:200px;
+  padding:6px 10px;border-radius:999px;border:1px solid #eee;background:#fff;
+  font-size:.9rem;font-weight:700;color:#111;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+}
+.tpoint.active .tlabel{background: #000;color: #fff;}
+@media(max-width:900px){ .tlabel{max-width:140px;font-size:.8rem} }
+@media(max-width:600px){ .tlabel{max-width:110px;font-size:.78rem} }
+
+/* ========= MAIN / SLIDES ========= */
+.main{position:relative;flex:1;overflow:hidden;background:#f6f7fb}
+#slides{height:100%;position:relative}
+.slide{position:absolute;inset:0;overflow:auto;opacity:0;transform:translateX(6%);transition:opacity .35s ease, transform .35s ease;display:none;}
+.slide.active{opacity:1;transform:translateX(0);display:block}
+
+/* ---- HERO (bandeau) plein largeur ---- */
+.step-hero{position:relative;min-height:200px;margin:0}
+.hero-bg{position:relative;height:200px}
+.hero-bg::before{
+  content:"";position:absolute;inset:0;border-radius:0;
+  background:
+    linear-gradient(180deg,rgba(0,0,0,.2),rgba(0,0,0,.55)),
+    var(--hero, linear-gradient(90deg,#1e2a38,#3e4b5e));
+  background-size:cover;background-position:center;
+}
+.hero-content{position:absolute;inset:0;display:flex;align-items:flex-end}
+.hero-inner{width:min(var(--page),100%);margin:0 auto;padding:18px 20px;display:flex;flex-wrap:wrap;align-items:center;gap:14px;color:#fff}
+.hchunk{display:flex;align-items:center;gap:12px}
+.hchunk .ico{width:48px;height:48px;border-radius:12px;background:#ffd000;color:#111;display:grid;place-items:center;font-size:20px}
+.hchunk h2{font-size:1.35rem}
+.hchunk .sub{font-size:.95rem;opacity:.92}
+.hero-kpis{display:flex;gap:10px;margin-left:auto}
+.kpi{background:rgba(255,255,255,.14);backdrop-filter:blur(4px);border:1px solid rgba(255,255,255,.2);padding:6px 10px;border-radius:10px;font-weight:700}
+
+/* ---- BODY (jours) ---- */
+.step-body{background:#f6f7fb;border-top:1px solid #eee;padding:18px 0 28px}
+.body-inner{width:min(var(--page),100%);margin:0 auto;padding:0 20px}
+
+/* ========= CARDS ========= */
+.day-swiper{padding:8px 6px 34px;touch-action:pan-y;}
+.swiper{width:100%}
+.swiper-slide{height:auto}
+.daycard{
+  height:100%;display:flex;flex-direction:column;gap:10px;
+  background:#fff;border:1px solid #eee;border-radius:14px;padding:14px;
+  box-shadow:0 2px 8px rgba(0,0,0,.04);
+}
+.day-top{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.jchip{
+  width:34px;height:34px;border-radius:50%;background:#111;color:var(--brand);
+  display:grid;place-items:center;font-weight:800;flex:0 0 auto;
+}
+.day-meta{display:flex;flex-direction:column}
+.day-meta .date{font-weight:700}
+.day-title{font-weight:800;color:#111}
+.lodging{margin-top:2px;color:#555;font-size:.95rem}
+.program{padding-left:18px}
+.program li{margin:6px 0}
+.badge{
+  display:inline-flex;gap:6px;align-items:center;
+  font-size:.85rem;font-weight:700;color:#333;
+  background:#f7f7f7;border:1px solid #eee;border-radius:999px;padding:6px 10px
+}
+.card-actions{margin-top:auto;display:flex;gap:8px}
+.mini{border:1px solid #ddd;background:#f6f7fb;border-radius:8px;padding:6px 9px;font-weight:600;cursor:pointer}
+.mini.primary{background:#111;color:#ffd000;border-color:#111}
+
+/* Swiper nav inside each step */
+.day-swiper .swiper-button-prev,
+.day-swiper .swiper-button-next{
+  color:#111; width:42px;height:42px;border-radius:50%;
+  background:#fff; border:1px solid #eaeaea; box-shadow:0 6px 18px var(--ring);
+}
+.day-swiper .swiper-pagination-bullet{background:#c9d1d9;opacity:1}
+.day-swiper .swiper-pagination-bullet-active{background:var(--brand)}
+
+/* ========= EDITOR (conserve l’éditeur & export) ========= */
+.backdrop{position:fixed;inset:0;background:rgba(0,0,0,.35);z-index:1000;display:none}
+.panel{position:fixed;z-index:1001;top:0;right:-520px;width:min(500px,100%);height:100vh;background:#fff;border-left:1px solid #eee;box-shadow:-10px 0 30px rgba(0,0,0,.25);display:flex;flex-direction:column;transition:right .3s}
+.panel.open{right:0}
+.phead{padding:12px 14px;border-bottom:1px solid #eee;display:flex;justify-content:space-between;align-items:center}
+.pbody{padding:12px 14px;overflow:auto}
+.btn{border:none;border-radius:10px;padding:10px 12px;font-weight:800;cursor:pointer}
+.btn.dark{background:#111;color:#ffd000}
+.btn.light{background:#f2f2f2;border:1px solid #e5e5e5}
+.list .item{background: #f3f3f3;border: 2px solid #ffd000;border-radius:12px;padding:10px;margin-bottom:8px}
+.row{display:flex;justify-content:space-between;gap:8px;align-items:center}
+.row small{color:var(--muted)}
+.grid{display:grid;gap:10px}
+.grid.two{grid-template-columns:1fr 1fr}
+label{font-size:.9rem;font-weight:700}
+input,select,textarea{width:100%;padding:8px 10px;border:1px solid #ddd;border-radius:8px;margin-top:6px;font-size:.95rem}
+textarea{min-height:90px;resize:vertical}
+.sep{margin:12px 0;border:0;border-top:1px solid #eee}
+.muted{color:#6b7280;font-size:.9rem}
+
+/* Reduced motion */
+@media (prefers-reduced-motion: reduce){
+  *{animation-duration:0.001ms !important; animation-iteration-count:1 !important; transition-duration:0.001ms !important; scroll-behavior:auto !important}
+}
+
+/* Print styles */
+@media print {
+  header, .nav, .swiper-button-prev, .swiper-button-next, .swiper-pagination, #panel, #backdrop, .update-toast { display:none !important; }
+  .container { background:#fff; }
+  .step-hero .hero-bg::before { background: none !important; }
+  .day-swiper .swiper-wrapper { display:block !important; }
+  .day-swiper .swiper-slide { page-break-inside: avoid; margin-bottom: 12px; }
+}
+</style>
+</head>
+<body>
+<div class="container">
+
+  <!-- HEADER -->
+  <header>
+    <div class="header-inner page">
+      <i class="fa-solid fa-kaaba" aria-hidden="true"></i>
+      <h1>Itinéraire Omra</h1>
+      <div class="who">Latifa & Karim</div>
+      <div class="actions">
+        <button id="btnInstall" class="chip primary" aria-label="Installer l’application" style="display:none">📲 Installer</button>
+        <button id="btnExport" class="chip secondary" aria-label="Exporter l’itinéraire">⬇️ Exporter</button>
+        <button id="btnEdit" class="chip primary" aria-label="Ouvrir l’éditeur">✏️ Modifier</button>
+      </div>
+    </div>
+  </header>
+
+  <!-- FLIGHTS -->
+  <div class="flight-bar" role="region" aria-label="Vols">
+    <div class="flight-inner page">
+      <div class="flight"><i class="fa-solid fa-plane-departure" aria-hidden="true"></i> Aller : Mar. 28 oct · 09:20 BRU → 17:20 JED · Flynas · direct</div>
+      <div class="flight"><i class="fa-solid fa-plane-arrival" aria-hidden="true"></i> Retour : Mer. 12 nov · 03:40 JED → 08:25 BRU · Flynas · direct</div>
+    </div>
+  </div>
+
+  <!-- TIMELINE -->
+  <div class="tl">
+    <div class="tl-inner page">
+      <div class="timeline">
+        <div class="timeline-line" aria-hidden="true"></div>
+        <div id="tlProgress" class="timeline-progress" aria-hidden="true"></div>
+        <div id="tpoints" role="tablist" aria-label="Étapes"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SLIDES PRINCIPALES -->
+  <div class="main">
+    <div class="swiper main-swiper" aria-label="Navigation des étapes">
+      <div class="swiper-wrapper" id="slides"></div>
+      <div class="swiper-button-prev" aria-label="Étape précédente" title="Étape précédente"></div>
+      <div class="swiper-button-next" aria-label="Étape suivante" title="Étape suivante"></div>
+      <div class="swiper-pagination" aria-hidden="true"></div>
+    </div>
+  </div>
+</div>
+
+<!-- EDITOR (conservé) -->
+<div id="backdrop" class="backdrop" aria-hidden="true"></div>
+<div id="panel" class="panel" aria-hidden="true" role="dialog" aria-modal="true" aria-label="Éditeur d’itinéraire">
+  <div class="phead">
+    <strong>Éditer l’itinéraire</strong>
+    <div>
+      <button id="addStep" class="btn light">+ Étape</button>
+      <button id="close" class="btn dark">Fermer</button>
+    </div>
+  </div>
+  <div class="pbody">
+    <div id="list" class="list"></div>
+    <hr class="sep" />
+    <form id="formStep" class="grid">
+      <input type="hidden" id="stepIndex" value="-1" />
+      <h3>Étape</h3>
+      <div class="grid two">
+        <div>
+          <label for="sTitle">Titre / Ville</label>
+          <input id="sTitle" placeholder="Séjour à Médine" required />
+        </div>
+        <div>
+          <label for="sIcon">Icône</label>
+          <select id="sIcon">
+            <option value="fa-list-check">Liste</option>
+            <option value="fa-city">Ville</option>
+            <option value="fa-mosque">Mosquée</option>
+            <option value="fa-kaaba">Kaaba</option>
+            <option value="fa-plane-arrival">Arrivée</option>
+            <option value="fa-plane-departure">Départ</option>
+            <option value="fa-circle-info">Info</option>
+          </select>
+        </div>
+      </div>
+      <div class="grid two">
+        <div>
+          <label for="sTag">Bandeau (ex : JOURS 4–8 — 30 OCT au 4 NOV)</label>
+          <input id="sTag" />
+        </div>
+        <div>
+          <label for="sDate">Nuits / court texte</label>
+          <input id="sDate" placeholder="5 nuits à Médine" />
+        </div>
+      </div>
+      <div>
+        <label for="sHero">Image de bandeau (URL, optionnel)</label>
+        <input id="sHero" placeholder="https://…" />
+      </div>
+      <div>
+        <label for="sTips">Conseil (optionnel)</label>
+        <textarea id="sTips" placeholder="Conseil pratique…"></textarea>
+      </div>
+      <div style="display:flex;gap:8px">
+        <button class="btn dark" type="submit">💾 Enregistrer l’étape</button>
+        <button id="resetStep" class="btn light" type="button">Réinitialiser</button>
+      </div>
+    </form>
+
+    <hr class="sep" />
+
+    <form id="formDay" class="grid">
+      <input type="hidden" id="dayStep" value="-1" />
+      <input type="hidden" id="dayIdx" value="-1" />
+      <h3>Jour</h3>
+      <div class="grid two">
+        <div>
+          <label for="dLabel">Libellé (ex : Jour 8 — Mar. 4 NOV)</label>
+          <input id="dLabel" required />
+        </div>
+        <div>
+          <label for="dDate">Date affichée</label>
+          <input id="dDate" placeholder="4 NOV" />
+        </div>
+      </div>
+      <div class="grid two">
+        <div>
+          <label for="dTitle">Titre</label>
+          <input id="dTitle" placeholder="Arrivée & installation" required />
+        </div>
+        <div>
+          <label for="dLodging">Logement</label>
+          <input id="dLodging" placeholder="Hôtel / quartier…" />
+        </div>
+      </div>
+      <div>
+        <label for="dProgram">Programme (une ligne par item)</label>
+        <textarea id="dProgram" placeholder="— …&#10;— …"></textarea>
+      </div>
+      <div style="display:flex;gap:8px">
+        <button class="btn dark" type="submit">💾 Enregistrer le jour</button>
+        <button id="resetDay" class="btn light" type="button">Réinitialiser</button>
+      </div>
+      <p class="muted">Astuce : supprime et recrée un jour pour le réordonner rapidement.</p>
+    </form>
+
+    <hr class="sep" />
+    <p class="muted">Pour sauvegarder définitivement, clique sur « Exporter » (le fichier reste interactif). Une sauvegarde automatique est aussi activée.</p>
+  </div>
+</div>
+
+<!-- Update toast -->
+<div id="toast" class="update-toast" role="status" aria-live="polite">
+  <span>Nouvelle version disponible</span>
+  <button id="btnReload">Mettre à jour</button>
+</div>
+
+<script>
+/* ========= DONNÉES ========= */
+let itinerary = [
+  {"title":"Préparatifs","tag":"AVANT LE DÉPART","date":"Checklist essentielle","icon":"fa-list-check","hero":"","tips":"Crée un petit carnet papier + scans des réservations et numéros utiles.","days":[{"label":"Avant le départ","date":"","title":"Checklist Omra","lodging":"","program":["Visa / Permis Omra via application Nusuk (incl. Rawda).","Prévoir des riyals (SAR) + carte SIM locale (Mobily/STC).","Tenue d'Ihram + vêtements modestes.","Santé : vaccins recommandés + trousse de secours.","Transports inter-villes : train Haramain / bus / VTC.","Télécharger plans hors-ligne Google Maps.","Carnet de réservations & numéros utiles."]}]},
+  {"title":"Jeddah","tag":"JOURS 1–3 — 28 au 30 OCT","date":"2 nuits + 1 journée","icon":"fa-city","hero":"","tips":"Carte SIM à l’aéroport · Profiter d’Al-Balad et de la Corniche.","days":[{"label":"Jour 1 — Mar. 28 OCT","date":"28 OCT","title":"Arrivée & installation","lodging":"Hôtel proche Corniche","program":["Arrivée JED ~17:20 · formalités.","Transfert taxi/Uber vers l’hôtel.","Balade Corniche & Fontaine du Roi Fahd."]},{"label":"Jour 2 — Mer. 29 OCT","date":"29 OCT","title":"Al-Balad & Corniche","lodging":"Hôtel proche Corniche","program":["Quartier historique Al-Balad (UNESCO) · Rawashin.","Mosquée flottante.","Souk Bab Makkah · Qabel Trail.","Coucher de soleil sur la Corniche."]},{"label":"Jour 3 — Jeu. 30 OCT","date":"30 OCT","title":"Transfert vers Médine + arrivée","lodging":"— (trajet) puis hôtel à Médine","program":["Matin : derniers achats à Jeddah.","Train/bus/VTC pour Médine (~4–5h).","Arrivée à Médine & installation."]}]},
+  {"title":"Médine","tag":"JOURS 4–8 — 30 OCT au 4 NOV","date":"5 nuits à Médine","icon":"fa-mosque","hero":"","tips":"Rawda via Nusuk tôt le matin. Rester proche de Masjid an-Nabawi.","days":[{"label":"Jour 3 — Jeu. 30 OCT","date":"30 OCT","title":"Arrivée & installation (soir)","lodging":"Hôtel proche Masjid an-Nabawi","program":["Check-in.","Première prière à la Mosquée du Prophète ﷺ.","Repérage autour de la mosquée."]},{"label":"Jour 4 — Ven. 31 OCT","date":"31 OCT","title":"Masjid an-Nabawi & Rawda","lodging":"Proche An-Nabawi","program":["Prières à la Mosquée du Prophète ﷺ.","Rawda via Nusuk (très tôt).","Recueillement près de la chambre du Prophète ﷺ · Abu Bakr · Umar.","Après-midi : adoration & repos."]},{"label":"Jour 5 — Sam. 1 NOV","date":"1 NOV","title":"Mosquées historiques","lodging":"Proche An-Nabawi","program":["Masjid Quba.","Masjid Qiblatain.","Mosquées du Fossé (Sab’ah).","Retour à An-Nabawi."]},{"label":"Jour 6 — Dim. 2 NOV","date":"2 NOV","title":"Mont Uhud & Jannat al-Baqi’","lodging":"Proche An-Nabawi","program":["Mont Uhud : site & martyrs.","Cimetière Al-Baqi’ (horaires autorisés).","Marché aux dattes : Ajwa, Safawi…"]},{"label":"Jour 7 — Lun. 3 NOV","date":"3 NOV","title":"Ferme de dattes / repos","lodging":"Proche An-Nabawi","program":["Visite ferme de dattes (optionnel) OU repos.","Préparation pour la Mecque : ghusl, ongles, ihram prêt."]},{"label":"Jour 8 — Mar. 4 NOV","date":"4 NOV","title":"Départ vers La Mecque","lodging":"— (trajet) puis hôtel à La Mecque","program":["Mise en ihram si Omra directe.","Train Haramain / route vers La Mecque.","Arrivée & installation (proche Al-Haram)."]}]},
+  {"title":"La Mecque","tag":"JOURS 8–15 — 4 au 11 NOV","date":"7 nuits à La Mecque","icon":"fa-kaaba","hero":"","tips":"Éviter l’affluence : tawaf très tôt ou tard.","days":[{"label":"Jour 8 — Mar. 4 NOV","date":"4 NOV","title":"Arrivée & Omra","lodging":"Hôtel proche Masjid al-Haram","program":["Installation puis Omra :","— Tawaf (7 tours).","— Prière près de Maqam Ibrahim (si possible).","— Zamzam.","— Sa’i (Safa ↔ Marwa, 7 allers-retours).","— Rasage (H) / coupe légère (F)."]},{"label":"Jour 9 — Mer. 5 NOV","date":"5 NOV","title":"Spiritualité à Al-Haram","lodging":"Proche Al-Haram","program":["Prières et méditation.","Abraj Al-Bait Mall.","Tahajjud si possible."]},{"label":"Jour 10 — Jeu. 6 NOV","date":"6 NOV","title":"Montagnes sacrées","lodging":"Proche Al-Haram","program":["Jabal al-Nour (grotte Hira).","Jabal Thawr.","Repos & prières."]},{"label":"Jour 11 — Ven. 7 NOV","date":"7 NOV","title":"Sites du Hajj","lodging":"Proche Al-Haram","program":["Mina · Muzdalifah · Mont Arafat.","Comprendre le pèlerinage.","Temps libre à Al-Haram."]},{"label":"Jour 12 — Sam. 8 NOV","date":"8 NOV","title":"Omra surérogatoire (facultative)","lodging":"Proche Al-Haram","program":["Masjid Aisha (Taneem) pour l’ihram.","Tawaf · Sa’i · coupe.","Sinon : repos & adoration.","Expo de la Révélation (créneau calme)."]},{"label":"Jour 13 — Dim. 9 NOV","date":"9 NOV","title":"Spiritualité & souvenirs","lodging":"Proche Al-Haram","program":["Multiples Tawaf nafl.","Souvenirs : chapelets, dattes, parfums."]},{"label":"Jour 14 — Lun. 10 NOV","date":"10 NOV","title":"Derniers instants","lodging":"Proche Al-Haram","program":["Tawaf al-Wada’ (adieu) en heures creuses.","Prière près de la Kaaba.","Souvenirs de dernière minute (Souk al-Khalil).","Préparer bagages & documents."]},{"label":"Jour 15 — Mar. 11 NOV","date":"11 NOV","title":"Dernières prières & départ vers Jeddah","lodging":"Check-out","program":["Matin/AM : derniers instants à Al-Haram.","Fin d’après-midi : quitter le logement.","Train/route vers JED (aéroport).","Arrivée aéroport autour de minuit (nuit 11→12)."]}]},
+  {"title":"Jeddah (Aéroport) & Départ","tag":"JOUR 15–16 — 11→12 NOV","date":"Arrivée aéroport (11) · Vol (12)","icon":"fa-plane-departure","hero":"","tips":"Transfert direct vers l’aéroport · marge de sécurité.","days":[{"label":"Mar. 11 NOV","date":"11 NOV","title":"Arrivée à l’aéroport JED (tard le soir)","lodging":"","program":["Arrivée à JED tard dans la nuit.","Formalités & attente à la porte d’embarquement."]},{"label":"Mer. 12 NOV","date":"12 NOV","title":"Vol retour 03:40 → 08:25","lodging":"","program":["Embarquement 03:40 (Flynas).","Arrivée BRU 08:25."]}]},
+  {"title":"Conseils Omra","tag":"GUIDE & ASTUCES","date":"À garder en tête","icon":"fa-circle-info","hero":"","tips":"Hydratation · chaussures confortables · éviter heures chaudes.","days":[{"label":"Conseils clés","date":"","title":"Checklist rapide","lodging":"","program":["Entrer en ihram correctement (niyyah, talbiyah).","Tawaf tôt le matin / tard le soir.","Applis utiles : Nusuk (Rawda), Muslim Pro/Athan.","Multiplier prières, Coran, invocations."]}]}];
+
+const slidesWrap = document.getElementById('slides');
+const tpoints = document.getElementById('tpoints');
+const tlProgress = document.getElementById('tlProgress');
+const panel = document.getElementById('panel');
+const backdrop = document.getElementById('backdrop');
+const btnEdit = document.getElementById('btnEdit');
+const btnClose = document.getElementById('close');
+const btnAddStep = document.getElementById('addStep');
+const list = document.getElementById('list');
+const formStep = document.getElementById('formStep');
+const stepIndex = document.getElementById('stepIndex');
+const sTitle = document.getElementById('sTitle');
+const sTag = document.getElementById('sTag');
+const sDate = document.getElementById('sDate');
+const sIcon = document.getElementById('sIcon');
+const sHero = document.getElementById('sHero');
+const sTips = document.getElementById('sTips');
+const resetStep = document.getElementById('resetStep');
+const formDay = document.getElementById('formDay');
+const dayStep = document.getElementById('dayStep');
+const dayIdx = document.getElementById('dayIdx');
+const dLabel = document.getElementById('dLabel');
+const dDate = document.getElementById('dDate');
+const dTitle = document.getElementById('dTitle');
+const dLodging = document.getElementById('dLodging');
+const dProgram = document.getElementById('dProgram');
+const resetDay = document.getElementById('resetDay');
+const btnExport = document.getElementById('btnExport');
+const btnInstall = document.getElementById('btnInstall');
+const toast = document.getElementById('toast');
+const btnReload = document.getElementById('btnReload');
+
+let current = 0;
+let mainSwiper;
+let swipers = [];
+
+/* ========= LOCAL STORAGE ========= */
+const LS_KEY = 'omra_itinerary_v1';
+function saveItinerary(){ try{ localStorage.setItem(LS_KEY, JSON.stringify(itinerary)); }catch(e){} }
+function loadItinerary(){ try{ const raw = localStorage.getItem(LS_KEY); if(raw){ itinerary = JSON.parse(raw); } }catch(e){} }
+
+/* ========= HELPERS ========= */
+function shortLabel(s){ return (s?.split('—')[0] || s || '').trim(); }
+function escapeHtml(s){ return String(s??'').replace(/[&<>\"']/g, m=>({ '&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;','\\'':'&#39;' }[m])); }
+function escapeAttr(s){ return String(s??'').replace(/['\"]/g, m=> m==='\"'?'&quot;':'&#39;'); }
+function toJ(label){ const m = label?.match(/\d+/); return m ? `J${m[0]}` : ''; }
+
+/* ========= SWIPERS ========= */
+function initSubSwipers(){
+  swipers.forEach(s => s.destroy(true,true));
+  swipers=[];
+  document.querySelectorAll('.day-swiper').forEach(el=>{
+    swipers.push(new Swiper(el,{
+      slidesPerView:1,
+      spaceBetween:16,
+      breakpoints: { 768: { slidesPerView: 2 }, 1024: { slidesPerView: 3 } },
+      navigation:{nextEl:el.querySelector('.swiper-button-next'),prevEl:el.querySelector('.swiper-button-prev')},
+      pagination:{el:el.querySelector('.swiper-pagination'),clickable:true}
+    }));
+  });
+}
+
+/* ========= RENDER ========= */
+function renderAll(){
+  slidesWrap.innerHTML='';
+  itinerary.forEach((st,i)=>{
+    const heroCss=st.hero?`style="--hero:url('${escapeAttr(st.hero)}')"`:'';
+    const daysCards=(st.days||[]).map((d,di)=>`
+      <div class="swiper-slide">
+        <article class="daycard">
+          <div class="day-top">
+            <div class="jchip">${toJ(d.label)}</div>
+            <div class="day-meta">
+              <div class="date">${escapeHtml(d.label||'')}${d.date?` · ${escapeHtml(d.date)}`:''}</div>
+              <div class="day-title">${escapeHtml(d.title||'')}</div>
+            </div>
+          </div>
+          ${d.lodging?`<div class="lodging"><span class="badge"><i class="fa-solid fa-bed" aria-hidden="true"></i> ${escapeHtml(d.lodging)}</span></div>`:''}
+          ${d.program?.length?`<ul class="program">${d.program.map(p=>`<li>${escapeHtml(p)}</li>`).join('')}</ul>`:''}
+          <div class="card-actions">
+            <button class="mini primary" data-edit-day data-s="${i}" data-d="${di}" aria-label="Modifier ce jour">Modifier</button>
+            <button class="mini" data-del-day data-s="${i}" data-d="${di}" aria-label="Supprimer ce jour">Supprimer</button>
+          </div>
+        </article>
+      </div>`).join('');
+
+    const slide=document.createElement('div');
+    slide.className='swiper-slide';
+    slide.innerHTML=`
+      <section class="step-hero">
+        <div class="hero-bg" ${heroCss}></div>
+        <div class="hero-content"><div class="hero-inner">
+          <div class="hchunk">
+            <div class="ico"><i class="fa-solid ${escapeHtml(st.icon||'fa-circle-info')}" aria-hidden="true"></i></div>
+            <div><h2>${escapeHtml(st.title||'')}</h2><div class="sub">${escapeHtml(st.tag||'')}</div></div>
+          </div>
+          <div class="hero-kpis"><div class="kpi"><i class="fa-regular fa-moon" aria-hidden="true"></i> ${escapeHtml(st.date||'')}</div></div>
+        </div></div>
+      </section>
+      <section class="step-body"><div class="body-inner">
+        ${st.days?.length?`
+          <div class="day-swiper swiper">
+            <div class="swiper-wrapper">${daysCards}</div>
+            <div class="swiper-pagination"></div>
+            <div class="swiper-button-prev" title="Jour précédent"></div>
+            <div class="swiper-button-next" title="Jour suivant"></div>
+          </div>`:''}
+        ${st.tips?`<div class="step-tip" style="margin-top:12px;background:#fff8d4;border:1px dashed #e9cf6a;border-radius:12px;padding:10px 12px;color:#5f4b00"><strong>Conseil :</strong> ${escapeHtml(st.tips)}</div>`:''}
+      </div></section>`;
+    slidesWrap.appendChild(slide);
+  });
+
+  initSubSwipers();
+
+  if(mainSwiper) mainSwiper.destroy(true,true);
+  mainSwiper=new Swiper('.main-swiper',{
+    slidesPerView:1,
+    navigation:{nextEl:'.main-swiper>.swiper-button-next',prevEl:'.main-swiper>.swiper-button-prev'},
+    pagination:{el:'.main-swiper>.swiper-pagination',clickable:true},
+    on:{ slideChange: onSlideChangeSyncURL }
+  });
+
+  fillList();
+  renderTimeline();
+  updateProgress();
+
+  document.querySelector('.main-swiper > .swiper-button-prev')?.setAttribute('aria-label','Étape précédente');
+  document.querySelector('.main-swiper > .swiper-button-next')?.setAttribute('aria-label','Étape suivante');
+
+  saveItinerary();
+}
+
+/* ========= TIMELINE ========= */
+function renderTimeline(){
+  tpoints.innerHTML = itinerary.map((st,i)=>`
+    <div class="tpoint ${i===current?'active':''}" data-index="${i}" role="tab" aria-selected="${i===current}">
+      <div class="dot"></div>
+      <div class="tlabel">${escapeHtml(shortLabel(st.tag||st.title))}</div>
+    </div>
+  `).join('');
+
+  tpoints.querySelectorAll('.tpoint').forEach(pt=>{
+    pt.addEventListener('click',()=> mainSwiper.slideTo(+pt.dataset.index));
+  });
+}
+
+let firstAnimDone = false;
+function updateProgress(animate = true) {
+  const dots = Array.from(document.querySelectorAll('.tpoint .dot'));
+  if (!dots.length) return;
+  dots.forEach((d, i) => {
+    d.parentElement.classList.toggle('active', i <= current);
+    d.parentElement.setAttribute('aria-selected', i===current);
+  });
+  const line = document.querySelector('.timeline-line');
+  const lineRect = line.getBoundingClientRect();
+  const getCenter = el => { const r = el.getBoundingClientRect(); return r.left + r.width / 2 - lineRect.left; };
+  const first = getCenter(dots[0]);
+  const cur = getCenter(dots[current]);
+  tlProgress.style.left = first + 'px';
+  if (!animate || firstAnimDone) {
+    tlProgress.style.width = (cur - first) + 'px';
+  } else {
+    tlProgress.style.width = '0px';
+    requestAnimationFrame(()=>{ tlProgress.style.width = (cur - first) + 'px'; });
+    firstAnimDone = true;
+  }
+}
+window.addEventListener('resize', () => updateProgress(false));
+
+/* ========= LISTE EDITEUR ========= */
+function fillList(){
+  list.innerHTML='';
+  itinerary.forEach((st,i)=>{
+    const item=document.createElement('div');
+    item.className='item';
+    item.innerHTML=`<div class="row">
+      <div><strong>${escapeHtml(st.title)}</strong><br><small>${escapeHtml(st.tag)} · ${escapeHtml(st.date)}</small></div>
+      <div class="row" style="gap:6px">
+        <button class="btn light" data-up="${i}">↑</button>
+        <button class="btn light" data-down="${i}">↓</button>
+        <button class="btn light" data-edit-step="${i}">Modifier</button>
+        <button class="btn light" data-add-day="${i}">+ Jour</button>
+        <button class="btn light" data-del-step="${i}">🗑️</button>
+      </div>
+    </div>
+    ${st.days?.length?`<div style="margin-top:8px">${st.days.map((d,di)=>
+      `<div style="display:flex;justify-content:space-between;border:1px dashed #eee;border-radius:10px;padding:6px 8px;margin-top:6px">
+         <div><strong>${escapeHtml(d.label)}</strong> — ${escapeHtml(d.title)} ${d.date?`<small style="opacity:.7">(${escapeHtml(d.date)})</small>`:''}</div>
+         <div class="row" style="gap:6px">
+           <button class="btn light" data-edit-day="${i}-${di}">✏️</button>
+           <button class="btn light" data-del-day="${i}-${di}">🗑️</button>
+         </div>
+       </div>`).join('')}</div>`:`<div class="muted" style="margin-top:6px">Aucun jour</div>`}`;
+    list.appendChild(item);
+  });
+
+  list.querySelectorAll('[data-edit-step]').forEach(b=>b.onclick=()=>{loadStep(+b.dataset.editStep); openPanel();});
+  list.querySelectorAll('[data-add-day]').forEach(b=>b.onclick=()=>{dayStep.value=+b.dataset.addDay;dayIdx.value=-1;formDay.reset();dLabel.focus();openPanel();});
+  list.querySelectorAll('[data-del-step]').forEach(b=>b.onclick=()=>{const i=+b.dataset.delStep;if(confirm('Supprimer cette étape ?')){itinerary.splice(i,1);renderAll();}});
+  list.querySelectorAll('[data-up]').forEach(b=>b.onclick=()=>{const i=+b.dataset.up;if(i>0){[itinerary[i-1],itinerary[i]]=[itinerary[i],itinerary[i-1]];renderAll();}});
+  list.querySelectorAll('[data-down]').forEach(b=>b.onclick=()=>{const i=+b.dataset.down;if(i<itinerary.length-1){[itinerary[i+1],itinerary[i]]=[itinerary[i],itinerary[i+1]];renderAll();}});
+  list.querySelectorAll('[data-edit-day]').forEach(b=>b.onclick=()=>{const[s,d]=b.dataset.editDay.split('-').map(Number);loadDay(s,d);openPanel();});
+  list.querySelectorAll('[data-del-day]').forEach(b=>b.onclick=()=>{const[s,d]=b.dataset.delDay.split('-').map(Number);if(confirm('Supprimer ce jour ?')){itinerary[s].days.splice(d,1);renderAll();}});
+}
+
+/* ========= EDITION ========= */
+function loadStep(i){const s=itinerary[i];if(!s)return;
+  stepIndex.value=i;sTitle.value=s.title||'';sTag.value=s.tag||'';sDate.value=s.date||'';sIcon.value=s.icon||'fa-circle-info';sHero.value=s.hero||'';sTips.value=s.tips||'';sTitle.focus();}
+formStep.addEventListener('submit',e=>{
+  e.preventDefault();
+  const i=+stepIndex.value;
+  const updated={title:sTitle.value.trim(),tag:sTag.value.trim(),date:sDate.value.trim(),icon:sIcon.value.trim(),hero:sHero.value.trim(),tips:sTips.value.trim(),days:itinerary[i]?.days||[]};
+  if(!updated.title)return alert('Titre requis');
+  if(i>=0)itinerary[i]=updated;else itinerary.push(updated);
+  stepIndex.value=-1;formStep.reset();renderAll();
+});
+resetStep.onclick=()=>{stepIndex.value=-1;formStep.reset();};
+
+function loadDay(si,di){const s=itinerary[si];const d=s?.days?.[di];
+  dayStep.value=si;dayIdx.value=(di??-1);
+  if(d){dLabel.value=d.label||'';dDate.value=d.date||'';dTitle.value=d.title||'';dLodging.value=d.lodging||'';dProgram.value=(d.program||[]).join('\n');}
+  else{formDay.reset();}
+  dLabel.focus();
+}
+formDay.addEventListener('submit',e=>{
+  e.preventDefault();
+  const si=+dayStep.value;if(si<0)return alert("Choisis d'abord une étape");
+  const di=+dayIdx.value;
+  const day={label:dLabel.value.trim(),date:dDate.value.trim(),title:dTitle.value.trim(),lodging:dLodging.value.trim(),program:dProgram.value.split('\n').map(s=>s.replace(/^[\-–—]\s*/,'').trim()).filter(Boolean)};
+  if(!day.label||!day.title)return alert('Libellé et Titre sont requis');
+  if(!itinerary[si].days)itinerary[si].days=[];
+  if(di>=0)itinerary[si].days[di]=day;else itinerary[si].days.push(day);
+  dayStep.value=-1;dayIdx.value=-1;formDay.reset();renderAll();
+});
+resetDay.onclick=()=>{dayStep.value=-1;dayIdx.value=-1;formDay.reset();};
+
+/* ========= PANEL ========= */
+let untrap = null;
+function trapFocus(container) {
+  const focusables = container.querySelectorAll('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])');
+  if (!focusables.length) return () => {};
+  const first = focusables[0], last = focusables[focusables.length - 1];
+  function handle(e){
+    if (e.key !== 'Tab') return;
+    if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+    else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+  }
+  container.addEventListener('keydown', handle);
+  return () => container.removeEventListener('keydown', handle);
+}
+function openPanel(){
+  backdrop.style.display='block';panel.classList.add('open');panel.setAttribute('aria-hidden','false');
+  const firstInput = panel.querySelector('input, textarea, select, button');
+  firstInput?.focus();
+  untrap = trapFocus(panel);
+}
+function closePanel(){
+  backdrop.style.display='none';panel.classList.remove('open');panel.setAttribute('aria-hidden','true');
+  formStep.reset();formDay.reset();stepIndex.value=-1;dayStep.value=-1;dayIdx.value=-1;
+  untrap?.();untrap=null;btnEdit.focus();
+}
+btnEdit.onclick=openPanel;btnClose.onclick=closePanel;backdrop.onclick=closePanel;btnAddStep.onclick=()=>{stepIndex.value=-1;formStep.reset();sTitle.focus();openPanel();};
+
+/* ========= EXPORT ========= */
+btnExport.onclick=()=>{
+  const src=document.documentElement.outerHTML;
+  const json=JSON.stringify(itinerary,null,2);
+  const updated=src.replace(/let\s+itinerary\s*=\s*\[[\s\S]*?\];/,'let itinerary = '+json+';');
+  const blob=new Blob(['<!DOCTYPE html>\n'+updated],{type:'text/html'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');a.href=url;a.download='sejour-omra.html';a.click();URL.revokeObjectURL(url);
+};
+
+/* ========= EVENTS GLOBAUX ========= */
+document.addEventListener('click',(e)=>{
+  const btn = e.target.closest('[data-edit-day],[data-del-day]');
+  if (!btn) return;
+  const s = +btn.dataset.s; const d = +btn.dataset.d;
+  if (btn.hasAttribute('data-edit-day')) { loadDay(s, d); openPanel(); }
+  if (btn.hasAttribute('data-del-day')) {
+    if (confirm('Supprimer ce jour ?')) { itinerary[s].days.splice(d,1); renderAll(); }
+  }
+});
+
+document.addEventListener('keydown', (e) => {
+  if (panel.classList.contains('open')) {
+    if (e.key === 'Escape') closePanel();
+  } else {
+    if (e.key === 'ArrowRight') mainSwiper?.slideNext();
+    if (e.key === 'ArrowLeft')  mainSwiper?.slidePrev();
+  }
+});
+
+/* ========= URL HASH ========= */
+function gotoFromHash(){
+  const m = location.hash.match(/step=(\d+)/);
+  if (m) {
+    const idx = Math.max(0, Math.min(itinerary.length-1, +m[1]));
+    mainSwiper?.slideTo(idx);
+    current = idx; updateProgress(false);
+  }
+}
+window.addEventListener('hashchange', gotoFromHash);
+function onSlideChangeSyncURL(){
+  current = mainSwiper.activeIndex; updateProgress(false);
+  const hash = `#step=${current}`; if (location.hash !== hash) history.replaceState(null,'',hash);
+}
+
+/* ========= PWA: SW + Install + Update banner ========= */
+// install button
+let deferredPrompt = null;
+window.addEventListener('beforeinstallprompt', (e) => {
+  e.preventDefault();
+  deferredPrompt = e;
+  btnInstall.style.display = 'inline-block';
+});
+btnInstall?.addEventListener('click', async () => {
+  if (!deferredPrompt) return;
+  deferredPrompt.prompt();
+  await deferredPrompt.userChoice;
+  deferredPrompt = null;
+  btnInstall.style.display = 'none';
+});
+window.addEventListener('appinstalled', () => { console.log('PWA installed'); });
+
+// SW registration and update flow
+let newWorker = null;
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('./sw.js').then(reg => {
+      // update flow
+      reg.addEventListener('updatefound', () => {
+        newWorker = reg.installing;
+        newWorker.addEventListener('statechange', () => {
+          if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+            // a new version is ready
+            toast.style.display = 'flex';
+          }
+        });
+      });
+      // check updates when coming back to tab
+      document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'visible') reg.update();
+      });
+    });
+    // when the new SW takes control, reload to apply
+    navigator.serviceWorker.addEventListener('controllerchange', () => {
+      window.location.reload();
+    });
+  });
+}
+btnReload.addEventListener('click', () => {
+  if (newWorker) newWorker.postMessage({ type: 'SKIP_WAITING' });
+  else location.reload();
+});
+
+/* ========= INIT ========= */
+loadItinerary();
+renderAll();
+gotoFromHash();
+updateProgress();
+</script>
+</body>
+</html>
