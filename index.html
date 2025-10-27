@@ -413,7 +413,10 @@ function loadItinerary(){ try{ const raw = localStorage.getItem(LS_KEY); if(raw)
 
 /* ========= HELPERS ========= */
 function shortLabel(s){ return (s?.split('—')[0] || s || '').trim(); }
-function escapeHtml(s){ return String(s??'').replace(/[&<>\"']/g, m=>({ '&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;','\\'':'&#39;' }[m])); }
+function escapeHtml(s){
+  const MAP = { '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' };
+  return String(s ?? '').replace(/[&<>"']/g, m => MAP[m]);
+}
 function escapeAttr(s){ return String(s??'').replace(/['\"]/g, m=> m==='\"'?'&quot;':'&#39;'); }
 function toJ(label){ const m = label?.match(/\d+/); return m ? `J${m[0]}` : ''; }
 
